@@ -41,7 +41,10 @@ if not sheet.get_all_values():
 # === Utility Functions ===
 def load_data():
     records = sheet.get_all_records()
-    return pd.DataFrame(records)
+    df = pd.DataFrame(records)
+    df["Row Number"] = df.index + 2  # account for 0-index and header row
+    return df
+
 
 def add_entry(user, odo_start, odo_end, rupees, fuel_price):
     timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -85,24 +88,63 @@ with st.form("entry_form"):
         st.session_state.last_odo = current_odo
 
 # --- Display Data ---
-st.subheader("📊 Fuel History")
+# Show data with edit/delete
+st.subheader("📊 Manage Entries")
 df = load_data()
 
 if not df.empty:
-    # Filter by user
+    # Show user filter
     users = df["User"].unique().tolist()
     selected_user = st.selectbox("Filter by user", options=["All"] + users)
-    if selected_user != "All":
-        df = df[df["User"] == selected_user]
+    filtered_df = df if selected_user == "All" else df[df["User"] == selected_user]
 
-    st.dataframe(df, use_container_width=True)
+    # Let user choose a row to edit
+    row_options = [f'{i+1}: {row["Timestamp"]} - {row["User"]}' for i, row in filtered_df.iterrows()]
+    selected_row = st.selectbox("Select entry to edit", ["None"] + row_options)
 
-    # Fuel Efficiency Chart
+    if selected_row != "None":
+        row_idx = int(selected_row.split(":")[0]) - 1
+        row = filtered_df.iloc[row_idx]
+        row_number = row["Row Number"]
+
+        st.markdown("### ✏️ Edit Entry")
+        with st.form("edit_form"):
+            updated_user = st.text_input("User", value=row["User"])
+            updated_start = st.number_input("Odometer Start", value=row["Odometer Start"])
+            updated_end = st.number_input("Odometer End", value=row["Odometer End"])
+            updated_rupees = st.number_input("Amount Paid (₹)", value=row["Amount Paid (₹)"])
+            updated_price = st.number_input("Fuel Price (₹/l)", value=row["Fuel Price (₹/l)"])
+            update_btn = st.form_submit_button("Update")
+
+        if update_btn:
+            distance = updated_end - updated_start
+            liters = updated_rupees / updated_price if updated_price else 0
+            efficiency = distance / liters if liters else 0
+            cost_km = updated_rupees / distance if distance else 0
+
+            updated_row = [
+                row["Timestamp"], updated_user, round(updated_start, 1), round(updated_end, 1),
+                round(distance, 1), round(liters, 2), round(updated_rupees, 2),
+                round(efficiency, 2), round(cost_km, 2), round(updated_price, 2)
+            ]
+            sheet.update(f"A{row_number}:K{row_number}", [updated_row])
+            st.success("✅ Row updated.")
+            st.experimental_rerun()
+
+        if st.button("🗑️ Delete This Entry"):
+            sheet.delete_rows(row_number)
+            st.warning("❌ Entry deleted.")
+            st.experimental_rerun()
+
+    # Show full table
+    st.dataframe(filtered_df.drop(columns=["Row Number"]), use_container_width=True)
+
+    # Charts
     st.subheader("⛽ Fuel Efficiency Over Time")
-    st.line_chart(df.set_index("Timestamp")["Fuel Efficiency (km/l)"])
+    st.line_chart(filtered_df.set_index("Timestamp")["Fuel Efficiency (km/l)"])
 
-    # Cost per KM Chart
     st.subheader("💰 Cost per KM Over Time")
-    st.line_chart(df.set_index("Timestamp")["Cost per KM (₹)"])
+    st.line_chart(filtered_df.set_index("Timestamp")["Cost per KM (₹)"])
+
 else:
     st.info("No data yet. Add a fuel entry to begin.")
