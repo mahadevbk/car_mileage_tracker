@@ -53,7 +53,7 @@ st.title("🚗 Car Mileage Tracker")
 
 # Sidebar: User Setup
 st.sidebar.header("User Setup")
-user = st.sidebar.text_input("Your name or email", value="anonymous").strip()
+user = st.sidebar.text_input("Your name or email", value="Prof. S. Rao").strip()
 start_odo = st.sidebar.number_input("Starting odometer (km)", min_value=0.0, step=1.0)
 
 if "start_odo" not in st.session_state:
