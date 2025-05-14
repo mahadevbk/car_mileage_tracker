@@ -12,6 +12,14 @@ client = gspread.authorize(creds)
 # Use the unique Sheet ID from the URL (not the title)
 SHEET_ID = "1LmLMnyABF-D-liQ7IElLsip561LyOUzqfNpYOI1VOoY"
 sheet = client.open_by_key(SHEET_ID).sheet1
+
+# Define HEADERS early, before using it
+HEADERS = [
+    "Timestamp", "User", "Odometer Start", "Odometer End",
+    "Distance (km)", "Liters", "Amount Paid (₹)",
+    "Fuel Efficiency (km/l)", "Cost per KM (₹)", "Fuel Price (₹/l)"
+
+
 # Check if headers are missing and insert them
 existing_values = sheet.get_all_values()
 if not existing_values or existing_values[0] != HEADERS:
