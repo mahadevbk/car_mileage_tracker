@@ -9,18 +9,18 @@ scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/au
 creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service_account"], scope)
 client = gspread.authorize(creds)
 
-# Use the Sheet ID from the URL (not the title)
+# Use the Sheet ID from your Google Sheet URL
 SHEET_ID = "1LmLMnyABF-D-liQ7IElLsip561LyOUzqfNpYOI1VOoY"
 sheet = client.open_by_key(SHEET_ID).sheet1
 
-# Sheet headers
+# Define headers
 HEADERS = [
     "Timestamp", "User", "Odometer Start", "Odometer End",
     "Distance (km)", "Liters", "Amount Paid (₹)",
     "Fuel Efficiency (km/l)", "Cost per KM (₹)", "Fuel Price (₹/l)"
 ]
 
-# Insert headers if missing
+# Insert headers if needed
 existing_values = sheet.get_all_values()
 if not existing_values or existing_values[0] != HEADERS:
     sheet.clear()
@@ -30,7 +30,7 @@ if not existing_values or existing_values[0] != HEADERS:
 def load_data():
     records = sheet.get_all_records()
     df = pd.DataFrame(records)
-    df["Row Number"] = df.index + 2  # Add 2 to account for 0-based index and header row
+    df["Row Number"] = df.index + 2  # account for header row
     return df
 
 def add_entry(user, odo_start, odo_end, rupees, fuel_price):
@@ -51,7 +51,7 @@ def add_entry(user, odo_start, odo_end, rupees, fuel_price):
 st.set_page_config(page_title="Car Mileage Tracker", layout="wide")
 st.title("🚗 Car Mileage Tracker")
 
-# Sidebar: user setup
+# Sidebar setup
 st.sidebar.header("User Setup")
 user = st.sidebar.text_input("Your name or email", value="anonymous").strip()
 start_odo = st.sidebar.number_input("Starting odometer (km)", min_value=0.0, step=1.0)
@@ -61,7 +61,7 @@ if "start_odo" not in st.session_state:
 if "last_odo" not in st.session_state:
     st.session_state.last_odo = start_odo
 
-# New entry form
+# Entry form
 st.subheader("➕ Add Fuel Entry")
 with st.form("entry_form"):
     odo_end = st.number_input("Current odometer (km)", min_value=st.session_state.last_odo + 0.1)
@@ -73,7 +73,7 @@ with st.form("entry_form"):
         add_entry(user, st.session_state.last_odo, odo_end, rupees, fuel_price)
         st.success("✅ Entry added successfully!")
         st.session_state.last_odo = odo_end
-        st.experimental_rerun()
+        st.rerun()
 
 # Manage entries
 st.subheader("📊 Manage Entries")
@@ -84,14 +84,8 @@ if not df.empty:
     selected_user = st.selectbox("Filter by user", ["All"] + users)
     filtered_df = df if selected_user == "All" else df[df["User"] == selected_user]
 
-    st.write("🔍 Filtered Entries:", len(filtered_df))  # ✅ Debug
-    st.write("Filtered DataFrame Preview:")
-    st.dataframe(filtered_df.head())
-
     if not filtered_df.empty:
-        row_labels = [
-            f"{i+1}: {r['Timestamp']} - {r['User']}" for i, r in filtered_df.iterrows()
-        ]
+        row_labels = [f"{i+1}: {r['Timestamp']} - {r['User']}" for i, r in filtered_df.iterrows()]
         selection = st.selectbox("Select an entry to edit or delete", ["None"] + row_labels)
 
         if selection != "None":
@@ -121,13 +115,20 @@ if not df.empty:
                 ]
                 sheet.update(f"A{sheet_row_number}:K{sheet_row_number}", [updated_data])
                 st.success("✅ Entry updated.")
-                st.experimental_rerun()
+                st.rerun()
 
             if st.button("🗑️ Delete this entry"):
                 sheet.delete_rows(sheet_row_number)
                 st.warning("❌ Entry deleted.")
-                st.experimental_rerun()
-    else:
-        st.warning("No entries found for this user.")
+                st.rerun()
+
+    st.subheader("📋 Full Data Table")
+    st.dataframe(filtered_df.drop(columns=["Row Number"]), use_container_width=True)
+
+    st.subheader("⛽ Fuel Efficiency Over Time")
+    st.line_chart(filtered_df.set_index("Timestamp")["Fuel Efficiency (km/l)"])
+
+    st.subheader("💰 Cost per KM Over Time")
+    st.line_chart(filtered_df.set_index("Timestamp")["Cost per KM (₹)"])
 else:
-    st.info("No data found. Please add a fuel entry to begin.")
+    st.info("No data yet. Add a fuel entry to begin.")
