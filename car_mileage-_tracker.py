@@ -18,7 +18,7 @@ HEADERS = [
     "Timestamp", "User", "Odometer Start", "Odometer End",
     "Distance (km)", "Liters", "Amount Paid (₹)",
     "Fuel Efficiency (km/l)", "Cost per KM (₹)", "Fuel Price (₹/l)"
-
+]
 
 # Check if headers are missing and insert them
 existing_values = sheet.get_all_values()
