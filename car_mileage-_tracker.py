@@ -80,58 +80,54 @@ st.subheader("📊 Manage Entries")
 df = load_data()
 
 if not df.empty:
-    # Filter
     users = df["User"].unique().tolist()
-    selected_user = st.selectbox("Filter by user", options=["All"] + users)
+    selected_user = st.selectbox("Filter by user", ["All"] + users)
     filtered_df = df if selected_user == "All" else df[df["User"] == selected_user]
 
-    # Select entry
-    row_labels = [f"{i+1}: {r['Timestamp']} - {r['User']}" for i, r in filtered_df.iterrows()]
-    selection = st.selectbox("Select an entry to edit or delete", ["None"] + row_labels)
+    st.write("🔍 Filtered Entries:", len(filtered_df))  # ✅ Debug
+    st.write("Filtered DataFrame Preview:")
+    st.dataframe(filtered_df.head())
 
-    if selection != "None":
-        selected_index = int(selection.split(":")[0]) - 1
-        selected_row = filtered_df.iloc[selected_index]
-        sheet_row_number = selected_row["Row Number"]
+    if not filtered_df.empty:
+        row_labels = [
+            f"{i+1}: {r['Timestamp']} - {r['User']}" for i, r in filtered_df.iterrows()
+        ]
+        selection = st.selectbox("Select an entry to edit or delete", ["None"] + row_labels)
 
-        st.markdown("### ✏️ Edit Entry")
-        with st.form("edit_entry_form"):
-            new_user = st.text_input("User", value=selected_row["User"])
-            odo_start = st.number_input("Odometer Start", value=selected_row["Odometer Start"])
-            odo_end = st.number_input("Odometer End", value=selected_row["Odometer End"])
-            amount = st.number_input("Amount Paid (₹)", value=selected_row["Amount Paid (₹)"])
-            price = st.number_input("Fuel Price (₹/l)", value=selected_row["Fuel Price (₹/l)"])
-            update = st.form_submit_button("Update Entry")
+        if selection != "None":
+            selected_index = int(selection.split(":")[0]) - 1
+            selected_row = filtered_df.iloc[selected_index]
+            sheet_row_number = selected_row["Row Number"]
 
-        if update:
-            distance = odo_end - odo_start
-            liters = amount / price if price else 0
-            efficiency = distance / liters if liters else 0
-            cost_km = amount / distance if distance else 0
+            st.markdown("### ✏️ Edit Entry")
+            with st.form("edit_entry_form"):
+                new_user = st.text_input("User", value=selected_row["User"])
+                odo_start = st.number_input("Odometer Start", value=selected_row["Odometer Start"])
+                odo_end = st.number_input("Odometer End", value=selected_row["Odometer End"])
+                amount = st.number_input("Amount Paid (₹)", value=selected_row["Amount Paid (₹)"])
+                price = st.number_input("Fuel Price (₹/l)", value=selected_row["Fuel Price (₹/l)"])
+                update = st.form_submit_button("Update Entry")
 
-            updated_data = [
-                selected_row["Timestamp"], new_user, round(odo_start, 1), round(odo_end, 1),
-                round(distance, 1), round(liters, 2), round(amount, 2),
-                round(efficiency, 2), round(cost_km, 2), round(price, 2)
-            ]
-            sheet.update(f"A{sheet_row_number}:K{sheet_row_number}", [updated_data])
-            st.success("✅ Entry updated.")
-            st.experimental_rerun()
+            if update:
+                distance = odo_end - odo_start
+                liters = amount / price if price else 0
+                efficiency = distance / liters if liters else 0
+                cost_km = amount / distance if distance else 0
 
-        if st.button("🗑️ Delete this entry"):
-            sheet.delete_rows(sheet_row_number)
-            st.warning("❌ Entry deleted.")
-            st.experimental_rerun()
+                updated_data = [
+                    selected_row["Timestamp"], new_user, round(odo_start, 1), round(odo_end, 1),
+                    round(distance, 1), round(liters, 2), round(amount, 2),
+                    round(efficiency, 2), round(cost_km, 2), round(price, 2)
+                ]
+                sheet.update(f"A{sheet_row_number}:K{sheet_row_number}", [updated_data])
+                st.success("✅ Entry updated.")
+                st.experimental_rerun()
 
-    # Table
-    st.subheader("📋 Full Data Table")
-    st.dataframe(filtered_df.drop(columns=["Row Number"]), use_container_width=True)
-
-    # Charts
-    st.subheader("⛽ Fuel Efficiency Over Time")
-    st.line_chart(filtered_df.set_index("Timestamp")["Fuel Efficiency (km/l)"])
-
-    st.subheader("💰 Cost per KM Over Time")
-    st.line_chart(filtered_df.set_index("Timestamp")["Cost per KM (₹)"])
+            if st.button("🗑️ Delete this entry"):
+                sheet.delete_rows(sheet_row_number)
+                st.warning("❌ Entry deleted.")
+                st.experimental_rerun()
+    else:
+        st.warning("No entries found for this user.")
 else:
-    st.info("No data yet. Add a fuel entry to begin.")
+    st.info("No data found. Please add a fuel entry to begin.")
