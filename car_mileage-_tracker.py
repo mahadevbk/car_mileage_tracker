@@ -12,6 +12,12 @@ client = gspread.authorize(creds)
 # Use the unique Sheet ID from the URL (not the title)
 SHEET_ID = "1LmLMnyABF-D-liQ7IElLsip561LyOUzqfNpYOI1VOoY"
 sheet = client.open_by_key(SHEET_ID).sheet1
+# Check if headers are missing and insert them
+existing_values = sheet.get_all_values()
+if not existing_values or existing_values[0] != HEADERS:
+    sheet.clear()
+    sheet.append_row(HEADERS)
+
 
 # Headers for the sheet
 HEADERS = [
