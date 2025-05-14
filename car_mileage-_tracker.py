@@ -10,7 +10,7 @@ creds = ServiceAccountCredentials.from_json_keyfile_dict(st.secrets["gcp_service
 client = gspread.authorize(creds)
 
 # Sheet name
-SHEET_NAME = "CarMileageSheet"
+SHEET_NAME = "CarMileageData"
 sheet = client.open(SHEET_NAME).sheet1
 
 # Required headers
